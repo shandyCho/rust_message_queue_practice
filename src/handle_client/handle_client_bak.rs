@@ -2,25 +2,38 @@
 use core::str;
 use std::net::TcpStream;
 use std::io::{BufRead, BufReader, Read};
+use std::fmt::Display;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all(deserialize = "camelCase"))]
-pub struct HttpRequestBody {
+pub struct HttpRequestBody<T> {
     sender_address: String,
-    data: Value,
+    #[serde(deserialize_with = "deserialize_from_str")]
+    #[serde(bound(deserialize = "T: FromStr, T::Err: Display"))]
+    data: T,
 }
 
-impl HttpRequestBody {
+fn deserialize_from_str<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: FromStr,
+    T::Err: Display,
+{
+    let s: &str = serde::Deserialize::deserialize(deserializer)?;
+    T::from_str(s).map_err(serde::de::Error::custom)
+}
+
+
+
+impl<T> HttpRequestBody<T> {
     pub fn get_sender_address(&self) -> &String {
         &self.sender_address
     }
 
-    pub fn get_data(&self) -> String {
-        let stringfied_data = &self.data.to_string();
-        stringfied_data.clone()
+    pub fn get_data(&self) -> &T {
+        &self.data
     }
 }
 
@@ -33,7 +46,7 @@ pub fn handle_client(mut stream: TcpStream) {
 }
 
 
-pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
+pub fn handle_connection<T: FromStr> (mut stream: TcpStream) -> HttpRequestBody<String> {
     let mut reader = BufReader::new(&mut stream);
     let mut request_per_line = String::new();
     let mut headers = Vec::new();
@@ -59,23 +72,12 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
     let mut body = vec![0; content_length];
     reader.read_exact(&mut body).unwrap();
     let request_body = str::from_utf8(&body).unwrap();
-    println!("{}", request_body);
+    // println!("Request Body: {}", request_body);
 
-    // let request_body_structure: HttpRequestBody = serde_json::from_str(request_body)
-    //     .expect("Failed to parse JSON from request body");
+    // let request_body = request_body.to_string();
 
-    match serde_json::from_str::<HttpRequestBody>(request_body) {
-        Ok(parsed) => {
-            println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
-            Some(parsed)
-        }
-        Err(e) => {
-            println!("Failed to parse JSON: {}", e);
-            None
-        }
-    }
-        
-
-    
-    // request_body_structure
+    let request_body_structure: HttpRequestBody<String> = serde_json::from_str(request_body)
+        .expect("Failed to parse JSON from request body");
+    println!("Request Body: {:?}", request_body_structure);
+    request_body_structure
 }
