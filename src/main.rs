@@ -6,10 +6,12 @@
 pub mod load_config;
 pub mod handle_client;
 pub mod serve_client;
+pub mod sub_and_pub;
 use std::net::TcpListener;
 
 use load_config::InitialConfig;
-use handle_client::HttpRequestBody;
+
+use crate::sub_and_pub::sub_and_pub::sub_and_pub;
 
 
 fn main() {
@@ -20,11 +22,6 @@ fn main() {
     let addr = format!("{}:{}", config.get_host(), config.get_port());
     let listner = TcpListener::bind(addr)
         .expect("Could not bind to address");
-
-    for stream in listner.incoming() {
-        // handle_client::handle_client::handle_client(stream.unwrap());
-        let request_body: HttpRequestBody = handle_client::handle_client::handle_connection(stream.unwrap());
-        serve_client::serve_client::serve_client(request_body);
-    }
+    sub_and_pub::<String>(listner);
 }
 
