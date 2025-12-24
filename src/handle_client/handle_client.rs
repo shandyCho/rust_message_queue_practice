@@ -35,7 +35,7 @@ pub fn handle_client(mut stream: TcpStream) {
 
 pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
     let mut reader = BufReader::new(&mut stream);
-    let mut request_per_line = String::new();
+    // let mut request_per_line = String::new();
     let mut headers = Vec::new();
     let mut content_length = 0;
 
@@ -47,6 +47,8 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
         if line.trim().is_empty() {
             // headers와 body를 나누는 빈 라인을 찾았을 때
             break;
+        } else {
+            println!("Header Line: {}", &line.trim());
         }
         if line.starts_with("Content-Length:") {
             if let Some(len_str) = line.split(":").nth(1) {
