@@ -24,49 +24,64 @@ impl HttpRequestBody {
     }
 }
 
-pub fn handle_client(mut stream: TcpStream) {
-    let mut buffer = [0 as u8; 100];
-    while stream.read(&mut buffer).is_err() {
-        println!("Reading from client...");
-    }
-    println!("Client sent: {:?}", String::from_utf8_lossy(&buffer));
-}
+/// HTTP를 가정하고 구현하였으나 TCP 프로토콜을 사용하는 방식으로 변경해야함
+// pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
+//     let mut reader = BufReader::new(&mut stream);
+//     let mut headers = Vec::new();
+//     let mut content_length = 0;
+
+//     loop {
+//         let mut line = String::new();
+//         if reader.read_line(&mut line).unwrap() == 0 {
+//             break;  // Connection Closed
+//         }
+//         if line.trim().is_empty() {
+//             // headers와 body를 나누는 빈 라인을 찾았을 때
+//             break;
+//         } else {
+//             println!("Header Line: {}", &line.trim());
+//         }
+//         if line.starts_with("Content-Length:") {
+//             if let Some(len_str) = line.split(":").nth(1) {
+//                 content_length = len_str.trim().parse::<usize>().unwrap_or(0);
+//             }
+//         }
+//         headers.push(line);
+//     } 
+
+//     let mut body = vec![0; content_length];
+//     reader.read_exact(&mut body).unwrap();
+//     let request_body = str::from_utf8(&body).unwrap();
+//     println!("{}", request_body);
+
+//     match serde_json::from_str::<HttpRequestBody>(request_body) {
+//         Ok(parsed) => {
+//             println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
+//             Some(parsed)
+//         }
+//         Err(e) => {
+//             println!("Failed to parse JSON: {}", e);
+//             None
+//         }
+//     }
+// }
+
 
 
 pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
     let mut reader = BufReader::new(&mut stream);
-    // let mut request_per_line = String::new();
-    let mut headers = Vec::new();
-    let mut content_length = 0;
+    // let mut headers = Vec::new();
+    // let mut content_length = 0;
 
-    loop {
-        let mut line = String::new();
-        if reader.read_line(&mut line).unwrap() == 0 {
-            break;  // Connection Closed
-        }
-        if line.trim().is_empty() {
-            // headers와 body를 나누는 빈 라인을 찾았을 때
-            break;
-        } else {
-            println!("Header Line: {}", &line.trim());
-        }
-        if line.starts_with("Content-Length:") {
-            if let Some(len_str) = line.split(":").nth(1) {
-                content_length = len_str.trim().parse::<usize>().unwrap_or(0);
-            }
-        }
-        headers.push(line);
-    } 
+    
+    let mut body = Vec::new();
+    reader.read_to_end(&mut body).ok();
+    let converted_data = str::from_utf8(&body).unwrap();
+    // reader.read_exact(&mut body).unwrap();
+    // let request_body = str::from_utf8(&body).unwrap();
+    println!("{}", converted_data);
 
-    let mut body = vec![0; content_length];
-    reader.read_exact(&mut body).unwrap();
-    let request_body = str::from_utf8(&body).unwrap();
-    println!("{}", request_body);
-
-    // let request_body_structure: HttpRequestBody = serde_json::from_str(request_body)
-    //     .expect("Failed to parse JSON from request body");
-
-    match serde_json::from_str::<HttpRequestBody>(request_body) {
+    match serde_json::from_str::<HttpRequestBody>(converted_data) {
         Ok(parsed) => {
             println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
             Some(parsed)
@@ -76,8 +91,4 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
             None
         }
     }
-        
-
-    
-    // request_body_structure
 }
