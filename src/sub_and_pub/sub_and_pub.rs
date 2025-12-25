@@ -1,10 +1,7 @@
 
 use std::net::TcpListener;
 use crate::{
-    handle_client::{
-        handle_client, 
-        HttpRequestBody
-    }, 
+    handle_client::handle_client, 
     serve_client::serve_client
 };
 
@@ -17,7 +14,6 @@ use crate::{
 
 pub fn sub_and_pub<T>(listner: TcpListener) {
         for stream in listner.incoming() {
-
             match stream {
             Ok(mut s) => {
                 println!("handle_client called");
