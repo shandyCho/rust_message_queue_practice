@@ -20,8 +20,8 @@ fn main() {
     let config: InitialConfig = load_config::load_config::load_config();
 
     let addr = format!("{}:{}", config.get_host(), config.get_port());
-    let listner = TcpListener::bind(addr)
-        .expect("Could not bind to address");
+    let listner = TcpListener::bind(&addr)
+        .expect(format!("Could not bind to address {}", &addr).as_str());
     sub_and_pub::<String>(listner);
 }
 
