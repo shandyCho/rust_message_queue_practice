@@ -1,7 +1,9 @@
 /// 메세지 큐는 따로 HTTP Body에 담긴 데이터를 처리할 필요가 없기 때문에 타겟으로 지정된 어드레스로 보내는 것만 신경 써볼것
 use core::str;
+use std::fs::{self, File};
 use std::net::TcpStream;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -84,6 +86,24 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
     match serde_json::from_str::<HttpRequestBody>(converted_data) {
         Ok(parsed) => {
             println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
+            if Path::new("/data/msqTest/backup").exists() && Path::new("/data/msqTest/backup").is_file() {
+                let file = File::options()
+                    // .read(true)
+                    .append(true)
+                    .open("/data/msqTest/backup");
+                let mut buf = BufWriter::new(file.unwrap());
+                buf.write_all(converted_data.as_bytes()).unwrap();
+                buf.write_all(b"\n").unwrap();
+                buf.flush().unwrap();
+            } else {
+                println!("Backup directory does not exist or is not a directory.");
+                let file = File::create("/data/msqTest/backup");
+                let mut buf = BufWriter::new(file.unwrap());
+                buf.write_all(converted_data.as_bytes()).unwrap();
+                buf.write_all(b"\n").unwrap();
+                buf.flush().unwrap();
+
+            }
             Some(parsed)
         }
         Err(e) => {
