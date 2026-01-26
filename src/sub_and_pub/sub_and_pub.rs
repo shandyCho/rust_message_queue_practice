@@ -14,6 +14,7 @@ use crate::{
 
 pub fn sub_and_pub<T>(listner: TcpListener) {
         for stream in listner.incoming() {
+            println!("Stream loop entered");
             match stream {
             Ok(mut s) => {
                 println!("handle_client called");

@@ -78,7 +78,13 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
     
     let mut body = Vec::new();
     reader.read_to_end(&mut body).ok();
-    let converted_data = str::from_utf8(&body).unwrap();
+    let converted_data = match str::from_utf8(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("Failed to convert body to UTF-8 string: {}", e);
+            return None;
+        }
+    };
     // reader.read_exact(&mut body).unwrap();
     // let request_body = str::from_utf8(&body).unwrap();
     println!("{}", converted_data);
@@ -108,6 +114,7 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
         }
         Err(e) => {
             println!("Failed to parse JSON: {}", e);
+            println!("Converted Data: {}", converted_data);
             None
         }
     }
