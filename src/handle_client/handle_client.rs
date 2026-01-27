@@ -44,6 +44,12 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<SubscribeMessage> {
     // reader.read_exact(&mut body).unwrap();
     // let request_body = str::from_utf8(&body).unwrap();
     println!("{}", converted_data);
+
+    // TODO 
+    // 1. backup 디렉토리 및 파일 생성 로직은 처음 어플리케이션 실행 시점에 한 번만 실행될 수 있도록 할 것
+    // 2. 백업 파일에 데이터를 쓰는 로직 분리 필요함
+    // 3. 메세지 Queue 생성 및 Queue에 데이터 삽입 로직 추가 필요함
+
     let path = Path::new("./msqTest/backup");
     match serde_json::from_str::<SubscribeMessage>(converted_data) {
         Ok(parsed) => {
