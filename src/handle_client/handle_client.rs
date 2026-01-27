@@ -10,12 +10,12 @@ use serde_json::Value;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all(deserialize = "camelCase"))]
-pub struct HttpRequestBody {
+pub struct SubscribeMessage {
     sender_address: String,
     data: Value,
 }
 
-impl HttpRequestBody {
+impl SubscribeMessage {
     pub fn get_sender_address(&self) -> &String {
         &self.sender_address
     }
@@ -26,7 +26,8 @@ impl HttpRequestBody {
     }
 }
 
-/// HTTP를 가정하고 구현하였으나 TCP 프로토콜을 사용하는 방식으로 변경해야함
+pub fn handle_connection(mut stream: TcpStream) -> Option<SubscribeMessage> {
+    match serde_json::from_str::<SubscribeMessage>(converted_data) {
 // pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
 //     let mut reader = BufReader::new(&mut stream);
 //     let mut headers = Vec::new();
