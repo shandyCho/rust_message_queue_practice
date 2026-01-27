@@ -27,7 +27,68 @@ impl SubscribeMessage {
 }
 
 pub fn handle_connection(mut stream: TcpStream) -> Option<SubscribeMessage> {
+    let mut reader = BufReader::new(&mut stream);
+    // let mut headers = Vec::new();
+    // let mut content_length = 0;
+
+    
+    let mut body = Vec::new();
+    reader.read_to_end(&mut body).ok();
+    let converted_data = match str::from_utf8(&body) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("Failed to convert body to UTF-8 string: {}", e);
+            return None;
+        }
+    };
+    // reader.read_exact(&mut body).unwrap();
+    // let request_body = str::from_utf8(&body).unwrap();
+    println!("{}", converted_data);
+    let path = Path::new("./msqTest/backup");
     match serde_json::from_str::<SubscribeMessage>(converted_data) {
+        Ok(parsed) => {
+            println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
+            println!("path exists: {}", path.exists());
+            println!("is file: {}", path.is_file());
+            if path.exists() && path.is_file() {
+                let file = File::options()
+                    .append(true)
+                    .open(path);
+                let mut buf = BufWriter::new(file.unwrap());
+                buf.write_all(converted_data.as_bytes()).unwrap();
+                buf.write_all(b"\n").unwrap();
+                buf.flush().unwrap();
+            } else {
+                println!("Backup directory does not exist or is not a directory.");
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                let file = File::create(path);
+                match file {
+                    Ok(_) => {
+                        println!("Backup file created successfully.");
+                        let mut buf = BufWriter::new(file.unwrap());
+                        buf.write_all(converted_data.as_bytes()).unwrap();
+                        buf.write_all(b"\n").unwrap();
+                        buf.flush().unwrap();
+                    },
+                    Err(e) => {
+                        println!("Failed to create backup file: {}", e);
+                        return Some(parsed);
+                    }
+                }
+            }
+            Some(parsed)
+        }
+        Err(e) => {
+            println!("Failed to parse JSON: {}", e);
+            println!("Converted Data: {}", converted_data);
+            None
+        }
+    }
+}
+
+
+
+// HTTP를 가정하고 구현하였으나 TCP 프로토콜을 사용하는 방식으로 변경해야함
 // pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
 //     let mut reader = BufReader::new(&mut stream);
 //     let mut headers = Vec::new();
@@ -69,54 +130,3 @@ pub fn handle_connection(mut stream: TcpStream) -> Option<SubscribeMessage> {
 //     }
 // }
 
-
-
-pub fn handle_connection(mut stream: TcpStream) -> Option<HttpRequestBody> {
-    let mut reader = BufReader::new(&mut stream);
-    // let mut headers = Vec::new();
-    // let mut content_length = 0;
-
-    
-    let mut body = Vec::new();
-    reader.read_to_end(&mut body).ok();
-    let converted_data = match str::from_utf8(&body) {
-        Ok(v) => v,
-        Err(e) => {
-            println!("Failed to convert body to UTF-8 string: {}", e);
-            return None;
-        }
-    };
-    // reader.read_exact(&mut body).unwrap();
-    // let request_body = str::from_utf8(&body).unwrap();
-    println!("{}", converted_data);
-
-    match serde_json::from_str::<HttpRequestBody>(converted_data) {
-        Ok(parsed) => {
-            println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
-            if Path::new("/data/msqTest/backup").exists() && Path::new("/data/msqTest/backup").is_file() {
-                let file = File::options()
-                    // .read(true)
-                    .append(true)
-                    .open("/data/msqTest/backup");
-                let mut buf = BufWriter::new(file.unwrap());
-                buf.write_all(converted_data.as_bytes()).unwrap();
-                buf.write_all(b"\n").unwrap();
-                buf.flush().unwrap();
-            } else {
-                println!("Backup directory does not exist or is not a directory.");
-                let file = File::create("/data/msqTest/backup");
-                let mut buf = BufWriter::new(file.unwrap());
-                buf.write_all(converted_data.as_bytes()).unwrap();
-                buf.write_all(b"\n").unwrap();
-                buf.flush().unwrap();
-
-            }
-            Some(parsed)
-        }
-        Err(e) => {
-            println!("Failed to parse JSON: {}", e);
-            println!("Converted Data: {}", converted_data);
-            None
-        }
-    }
-}
