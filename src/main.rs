@@ -7,14 +7,14 @@ pub mod load_config;
 pub mod handle_client;
 pub mod serve_client;
 pub mod sub_and_pub;
+pub mod store_message;
 use std::net::TcpListener;
 
 use load_config::InitialConfig;
 
 use crate::sub_and_pub::sub_and_pub::sub_and_pub;
-
-
-fn main() {
+#[tokio::main]
+async fn main() {
     println!("Hello, Message Queue!");
 
     let config: InitialConfig = load_config::load_config::load_config();
@@ -22,6 +22,9 @@ fn main() {
     let addr = format!("{}:{}", config.get_host(), config.get_port());
     let listner = TcpListener::bind(&addr)
         .expect(format!("Could not bind to address {}", &addr).as_str());
-    sub_and_pub::<String>(listner);
+    let path = config.get_file_path().to_path_buf();
+    let mut message_queue: Vec<String> = Vec::new();
+    let mut message_store_vector: Vec<String> = Vec::new();
+    sub_and_pub::<String>(listner, path, message_queue, message_store_vector);
 }
 
