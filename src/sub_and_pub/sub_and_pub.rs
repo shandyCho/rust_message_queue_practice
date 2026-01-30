@@ -1,7 +1,10 @@
 
-use std::{io::{Error, Write}, net::TcpListener, path::PathBuf};
+use std::{io::{Error, Write}, path::PathBuf};
+use tokio::{net::TcpListener, sync::mpsc};
+use tokio::io::AsyncWriteExt;
+
 use crate::{
-    handle_client::handle_client, 
+    handle_client::{SubscribeMessage, handle_client}, 
     serve_client::serve_client, 
     store_message::store_message::store_message_in_file
 };
@@ -14,54 +17,67 @@ use crate::{
     // 메세지를 묶을 단위의 벡터는 기동 시 프로퍼티 파일에 정의된 값에 따라 사이즈가 결졍될 수 있도록 할 것 
 
 // 이쪽에서 메세지 IO 작업 진행하는 함수 CALL 하고 Message Queue도 만들어야 할듯
-pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) {
-        for stream in listner.incoming() {
-            println!("Stream loop entered");
-            match stream {
-            Ok(mut s) => {
-                let msg;
-                let message = handle_client::handle_connection(s.try_clone().unwrap());
-                println!("serve_client called");
-                
-                if message.is_none() {
-                    eprintln!("Failed to parse request body. Skipping this connection.");
-                    let _ = s.write_all("Server can not parse client message".as_bytes())
-                        .inspect_err(|err| println!("Can not send error message to client: {}", err));
-                    continue;
-                } else {
-                    msg = message.unwrap();
-                    message_queue.push(msg.get_data().clone());
-                    message_store_vector.push(msg.get_data().clone());
+pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
+        
 
+    let (tx, mut rx) = mpsc::unbounded_channel::<Option<SubscribeMessage>>();
 
-                    println!("message_store_vector.len() == {}", message_store_vector.len());
-                    if message_store_vector.len() == 5 {
-                        let v = message_store_vector.clone();
-                        let fp = file_path.clone();
-                        // 데이터를 구조체로 받아왔으면 파일에 저장도 해야지...
-                        // 저장하고 그 다음에 store_vector 비워줘야함
-                        // 그러기 위해서는 저장한 다음 저장에 성공했다는 사인을 전달 받을 필요가 있음
-                        let store = tokio::spawn(async {
-                            println!("첫번째 async 단위");
-                            store_message_in_file(fp, v).await;
-                        });
-                            
-                        let _ = store.await;
-                        message_store_vector.clear();
-                    }
-
-
-                    println!("async 하고 그 다음에 출력이 되는지 봐야함");
-                    // 데이터를 처리하는 로직
-                    // serve_client::serve_client(msg);
-                }
-                
-            }
-            Err(e) => {
-                eprintln!("Connection failed: {}", e);
-                // 연결 하나가 실패해도 루프를 계속 돌아야 서버가 유지됩니다.
+    tokio::spawn(async move {
+        while let Some(message) = rx.recv().await {
+            // println!("{}", message);
+            if message.is_none() {
+                eprintln!("Failed to parse request body. Skipping this connection.");
+                // let _ = socket.write_all("Server can not parse client message".as_bytes())
+                //     .inspect_err(|err| println!("Can not send error message to client: {}", err));
                 continue;
+            } else {
+                let msg = message.unwrap();
+                message_queue.push(msg.get_data().clone());
+                message_store_vector.push(msg.get_data().clone());
+
+
+                println!("message_store_vector.len() == {}", message_store_vector.len());
+                if message_store_vector.len() == 5 {
+                    let v = message_store_vector.clone();
+                    let fp = file_path.clone();
+                    // 데이터를 구조체로 받아왔으면 파일에 저장도 해야지...
+                    // 저장하고 그 다음에 store_vector 비워줘야함
+                    // 그러기 위해서는 저장한 다음 저장에 성공했다는 사인을 전달 받을 필요가 있음
+                    let store = tokio::spawn(async {
+                        println!("첫번째 async 단위");
+                        store_message_in_file(fp, v).await;
+                    });
+                        
+                    let _ = store.await;
+                    message_store_vector.clear();
+                }
+
+
+                println!("async 하고 그 다음에 출력이 되는지 봐야함");
             }
         }
-    }
+    });
+
+    loop {
+        let (mut socket, addr) = listner.accept().await?; 
+        let tx_clone = tx.clone();
+        println!("Stream loop entered");
+        tokio::spawn(async move {
+            handle_client::handle_connection(socket, tx_clone).await;
+            println!("serve_client called");
+            
+            
+        });
+        // match stream {
+        // Ok(mut s) => {
+            
+                // 데이터를 처리하는 로직
+                // serve_client::serve_client(msg);
+    };
+                
+            // }
+            // Err(e) => {
+                // eprintln!("Connection failed: {}", e);
+                // 연결 하나가 실패해도 루프를 계속 돌아야 서버가 유지됩니다.
+    Ok(())
 }
