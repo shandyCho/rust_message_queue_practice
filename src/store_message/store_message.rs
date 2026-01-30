@@ -73,14 +73,14 @@ pub async fn store_message_in_file(file_path: PathBuf, message_vector: Vec<Strin
                     },
                     Err(e) => {
                         eprintln!("Failed to write messages to file: {}", e);
-                        return; // e
+                        return;
                     }
                 };
             
         },
         Err(e) => {
             eprintln!("Failed to open file for appending: {}", e);
-            return; // e;
+            return;
         }
     };
 

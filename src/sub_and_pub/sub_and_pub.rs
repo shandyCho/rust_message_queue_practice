@@ -1,5 +1,5 @@
 
-use std::{io::{Error, Write}, path::PathBuf};
+use std::{io::{Error}, path::PathBuf};
 use tokio::{net::TcpListener, sync::mpsc};
 use tokio::io::AsyncWriteExt;
 
@@ -19,18 +19,19 @@ use crate::{
 // 이쪽에서 메세지 IO 작업 진행하는 함수 CALL 하고 Message Queue도 만들어야 할듯
 pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
         
-
+    // clinet의 요청을 처리할 함수와 통신할 채널 생성
     let (tx, mut rx) = mpsc::unbounded_channel::<Option<SubscribeMessage>>();
-
+    // 채널 수신 및 데이터 처리 로직 비동기 블럭 내에 생성
     tokio::spawn(async move {
         while let Some(message) = rx.recv().await {
-            // println!("{}", message);
             if message.is_none() {
                 eprintln!("Failed to parse request body. Skipping this connection.");
                 // let _ = socket.write_all("Server can not parse client message".as_bytes())
                 //     .inspect_err(|err| println!("Can not send error message to client: {}", err));
                 continue;
             } else {
+                // TODO: 메세징 큐 변수로 데이터를 로드하는 로직이 필요함
+                // 
                 let msg = message.unwrap();
                 message_queue.push(msg.get_data().clone());
                 message_store_vector.push(msg.get_data().clone());
@@ -51,13 +52,12 @@ pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut messag
                     let _ = store.await;
                     message_store_vector.clear();
                 }
-
-
                 println!("async 하고 그 다음에 출력이 되는지 봐야함");
             }
         }
     });
 
+    // TCP/IP 연결 수신 루프
     loop {
         let (mut socket, addr) = listner.accept().await?; 
         let tx_clone = tx.clone();
@@ -65,19 +65,7 @@ pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut messag
         tokio::spawn(async move {
             handle_client::handle_connection(socket, tx_clone).await;
             println!("serve_client called");
-            
-            
         });
-        // match stream {
-        // Ok(mut s) => {
-            
-                // 데이터를 처리하는 로직
-                // serve_client::serve_client(msg);
     };
-                
-            // }
-            // Err(e) => {
-                // eprintln!("Connection failed: {}", e);
-                // 연결 하나가 실패해도 루프를 계속 돌아야 서버가 유지됩니다.
     Ok(())
 }

@@ -28,15 +28,12 @@ impl SubscribeMessage {
 }
 
 pub async fn handle_connection(mut socket: TcpStream, tx: mpsc::UnboundedSender<Option<SubscribeMessage>>) {
-    // let mut reader = BufReader::new(&mut stream);
-    // let data = socket.read(&mut buffer);
-    // let mut result_vector = Vec::new();
+    // 줄바꿈 문자 (\n) 기준으로 데이터를 읽어들이는 Reader 생성
+    // LinesCodec 의 기본 설정이 줄바꿈 문자로 데이터를 구분하는 것임
     let mut framed_reader = FramedRead::new(socket, LinesCodec::new());
     while let Some(result) = framed_reader.next().await {
         match result {
             Ok(line) => {
-                println!("Received line: {}", line);
-                
                 match serde_json::from_str::<SubscribeMessage>(&line) {
                     Ok(parsed) => {
                         println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());

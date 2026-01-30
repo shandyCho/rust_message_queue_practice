@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>>{
     let path = config.get_file_path().to_path_buf();
     let mut message_queue: Vec<String> = Vec::new();
     let mut message_store_vector: Vec<String> = Vec::new();
-    sub_and_pub::<String>(listner, path, message_queue, message_store_vector).await;
+    sub_and_pub::<String>(listner, path, message_queue, message_store_vector).await?;
     Ok(())
 }
 
