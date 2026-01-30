@@ -1,5 +1,5 @@
 
-use std::{net::TcpListener, path::PathBuf};
+use std::{io::{Error, Write}, net::TcpListener, path::PathBuf};
 use crate::{
     handle_client::handle_client, 
     serve_client::serve_client, 
@@ -20,34 +20,40 @@ pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut messag
             match stream {
             Ok(mut s) => {
                 let msg;
-                let message = handle_client::handle_connection(s);
+                let message = handle_client::handle_connection(s.try_clone().unwrap());
                 println!("serve_client called");
-
+                
                 if message.is_none() {
                     eprintln!("Failed to parse request body. Skipping this connection.");
-                    continue; // 다음 연결로 넘어갑니다.
+                    let _ = s.write_all("Server can not parse client message".as_bytes())
+                        .inspect_err(|err| println!("Can not send error message to client: {}", err));
+                    continue;
                 } else {
                     msg = message.unwrap();
                     message_queue.push(msg.get_data().clone());
                     message_store_vector.push(msg.get_data().clone());
 
 
-
-                    if (message_store_vector.len() > 0) {
+                    println!("message_store_vector.len() == {}", message_store_vector.len());
+                    if message_store_vector.len() == 5 {
                         let v = message_store_vector.clone();
                         let fp = file_path.clone();
                         // 데이터를 구조체로 받아왔으면 파일에 저장도 해야지...
+                        // 저장하고 그 다음에 store_vector 비워줘야함
+                        // 그러기 위해서는 저장한 다음 저장에 성공했다는 사인을 전달 받을 필요가 있음
                         let store = tokio::spawn(async {
+                            println!("첫번째 async 단위");
                             store_message_in_file(fp, v).await;
                         });
                             
                         let _ = store.await;
+                        message_store_vector.clear();
                     }
 
 
-                    
+                    println!("async 하고 그 다음에 출력이 되는지 봐야함");
                     // 데이터를 처리하는 로직
-                    serve_client::serve_client(msg);
+                    // serve_client::serve_client(msg);
                 }
                 
             }
