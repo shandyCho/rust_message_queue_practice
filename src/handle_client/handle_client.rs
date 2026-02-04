@@ -1,11 +1,9 @@
 /// 메세지 큐는 따로 HTTP Body에 담긴 데이터를 처리할 필요가 없기 때문에 타겟으로 지정된 어드레스로 보내는 것만 신경 써볼것
 use core::str;
-// use std::net::TcpStream;
-use std::io::{BufReader, Read};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use tokio::{io::AsyncReadExt, net::TcpStream, sync::mpsc};
+use serde_json::{Value, Error};
+use tokio::{net::TcpStream, sync::mpsc};
 use tokio_util::codec::{FramedRead, LinesCodec};
 use tokio_stream::StreamExt;
 
@@ -34,49 +32,46 @@ pub async fn handle_connection(mut socket: TcpStream, tx: mpsc::UnboundedSender<
     while let Some(result) = framed_reader.next().await {
         match result {
             Ok(line) => {
-                match serde_json::from_str::<SubscribeMessage>(&line) {
-                    Ok(parsed) => {
-                        println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
-                        tx.send(Some(parsed));
-                    }
-                    Err(e) => {
-                        println!("Failed to parse JSON: {}", e);
-                        println!("Converted Data: {}", &line);
+                let parsed: SubscribeMessage = serde_json::from_str::<SubscribeMessage>(&line)
+                    .unwrap_or_else(|e: Error| {
+                        eprintln!("Failed to parse JSON: {}", e);
+                        eprintln!("Converted Data: {}", &line);
                         tx.send(None);
-                    }
+                        SubscribeMessage { classifier: "".to_string(), data: serde_json::Value::String(String::new()) }
+                    }); 
+                
+                if !parsed.get_classifier().is_empty() {
+                    println!("sender_address: {:?}, data: {:?}", &parsed.get_classifier(), &parsed.get_data());
+                    tx.send(Some(parsed));
+             
                 }
             }
             Err(e) => {
                 eprintln!("Error reading line: {}", e);
                 tx.send(None);
             }
-        }
+        };
     };
-    // result_vector
 
-
-
-
-    // let mut body = Vec::new();
-    // reader.read_to_end(&mut body).ok();
-    // let converted_data = match str::from_utf8(&body) {
-    //     Ok(v) => v.to_owned(),
-    //     Err(e) => {
-    //         println!("Failed to convert body to UTF-8 string: {}", e);
-    //         return None;
+    // while let Some(result) = framed_reader.next().await {
+    //     match result {
+    //         Ok(line) => {
+    //             match serde_json::from_str::<SubscribeMessage>(&line) {
+    //                 Ok(parsed) => {
+    //                     println!("sender_address: {:?}, data: {:?}", &parsed.get_classifier(), &parsed.get_data());
+    //                     tx.send(Some(parsed));
+    //                 }
+    //                 Err(e) => {
+    //                     println!("Failed to parse JSON: {}", e);
+    //                     println!("Converted Data: {}", &line);
+    //                     tx.send(None);
+    //                 }
+    //             }
+    //         }
+    //         Err(e) => {
+    //             eprintln!("Error reading line: {}", e);
+    //             tx.send(None);
+    //         }
     //     }
     // };
-    // println!("{}", converted_data);
-    // let data = match serde_json::from_str::<SubscribeMessage>(&converted_data) {
-    //     Ok(parsed) => {
-    //         println!("sender_address: {:?}, data: {:?}", &parsed.get_sender_address(), &parsed.get_data());
-    //         Some(parsed)
-    //     }
-    //     Err(e) => {
-    //         println!("Failed to parse JSON: {}", e);
-    //         println!("Converted Data: {}", converted_data);
-    //         None
-    //     }
-    // };
-    // data   
 }

@@ -4,15 +4,12 @@ use std::{
         File
     }, 
     io::{
-        BufWriter, 
-        Read, 
         Write
     }, 
     path::PathBuf
 };
 use tokio::{
     fs::{
-        self as tokio_fs,
         File as AsyncFile
     },
     io::{
@@ -65,17 +62,28 @@ pub async fn store_message_in_file(file_path: PathBuf, message_vector: Vec<Strin
             for message in message_vector {
                 message_form_vector = message_form_vector + (message + "\n").as_str();
             }
-            let result = match buf.write_all(message_form_vector.as_bytes())
-                .await {
-                    Ok(_) => {
-                        buf.flush().await;
-                        // Ok(())
-                    },
-                    Err(e) => {
-                        eprintln!("Failed to write messages to file: {}", e);
-                        return;
-                    }
-                };
+            buf.write_all(message_form_vector.as_bytes())
+                .await
+                .unwrap_or_else(|err| {
+                    eprintln!("Failed to write messages to file: {}", err);
+                    return;
+                });
+            buf.flush()
+                .await
+                .unwrap_or_else(|err| {
+                    eprintln!("Failed to flush buffer to file: {}", err);
+                    return;
+                });
+                // {
+                //     Ok(_) => {
+                //         buf.flush().await;
+                //         // Ok(())
+                //     },
+                //     Err(e) => {
+                //         eprintln!("Failed to write messages to file: {}", e);
+                //         return;
+                //     }
+                // };
             
         },
         Err(e) => {
