@@ -33,7 +33,7 @@ func tcpConnect(c net.Conn, wg *sync.WaitGroup) {
 
 	for i := 1; i <= 100000; i++ {
 		send := make(map[string]interface{})
-		send["senderAddress"] = "127.0.0.1:80"
+		send["classifier"] = "testClassifier"
 		sendData := make(map[string]interface{})
 		sendData["cmd"] = "test"
 		sendData["time"] = time.Now().Unix()

@@ -15,9 +15,9 @@ pub fn serve_client(request_body: SubscribeMessage) {
     // stream.write_all(request_body.get_data().as_bytes())
     //     .expect("Failed to send data to target address");
 
-    match TcpStream::connect::<&String>(request_body.get_sender_address()) {
+    match TcpStream::connect::<&String>(request_body.get_classifier()) {
         Ok(mut stream) => {
-            println!("Connected to target address: {}", request_body.get_sender_address());
+            println!("Connected to target address: {}", request_body.get_classifier());
             stream.write_all(request_body.get_data().as_bytes())
                 .expect("Failed to send data to target address");
         }

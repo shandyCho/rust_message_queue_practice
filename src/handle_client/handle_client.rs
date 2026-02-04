@@ -12,13 +12,13 @@ use tokio_stream::StreamExt;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct SubscribeMessage {
-    sender_address: String,
+    classifier: String,
     data: Value,
 }
 
 impl SubscribeMessage {
-    pub fn get_sender_address(&self) -> &String {
-        &self.sender_address
+    pub fn get_classifier(&self) -> &String {
+        &self.classifier
     }
 
     pub fn get_data(&self) -> String {
