@@ -1,11 +1,9 @@
 
-use std::{io::{Error}, path::PathBuf};
-use tokio::{net::TcpListener, sync::mpsc};
-use tokio::io::AsyncWriteExt;
+use std::{io::Error, path::PathBuf, sync::Arc, thread};
+use tokio::{net::{TcpListener, TcpSocket}, sync::mpsc};
 
 use crate::{
-    handle_client::{SubscribeMessage, handle_client}, 
-    serve_client::serve_client, 
+    handle_client::{SubscribeMessage, handle_client},
     store_message::store_message::store_message_in_file
 };
     // TODO 
@@ -18,16 +16,46 @@ use crate::{
 
 // 이쪽에서 메세지 IO 작업 진행하는 함수 CALL 하고 Message Queue도 만들어야 할듯
 pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
-        
+    
     // clinet의 요청을 처리할 함수와 통신할 채널 생성
-    let (tx, mut rx) = mpsc::unbounded_channel::<Option<SubscribeMessage>>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<(TcpSocket, Option<SubscribeMessage>)>();
+    let 
+    // Arc를 사용하여 여러군데에서 TcpListener를 사용하여 작업을 할 수 있도록 함?
+    let listner_arc = Arc::new(listner);
+    let listner_copy_for_listning = Arc::clone(&listner_arc).clone();
+    let listner_copy_for_writing = Arc::clone(&listner_arc).clone();
+
+    let t = thread::spawn(async move || {
+        // TCP/IP 연결 수신 루프
+            loop {
+                if let Ok(accept_result) = listner_copy_for_listning.accept().await {
+                    let (mut socket, addr) = accept_result;
+                    let tx_clone = tx.clone();
+                    println!("Stream loop entered");
+                    tokio::spawn(async move {
+                        handle_client::handle_connection(socket, tx_clone).await;
+                        println!("serve_client called");
+                    });
+                } else {
+                    eprintln!("Failed to accept connection");
+                }
+            };
+    });
+
+    t.join();
+
     // 채널 수신 및 데이터 처리 로직 비동기 블럭 내에 생성
     tokio::spawn(async move {
-        while let Some(message) = rx.recv().await {
+        while let Some((socket, message)) = rx.recv().await {
             if message.is_none() {
+                // 메세지가 없을 때에는 클라이언트에게 에러 메세지를 전송해줄 필요가 있음
+                // 그렇기 때문에 메세지를 받아온 곳에다가 에러 메세지를 보내고 나머지 데이터를 버리는 작업이 필요함
+                // let listner_copy = Arc::clone(&listner_arc);
                 eprintln!("Failed to parse request body. Skipping this connection.");
-                // let _ = socket.write_all("Server can not parse client message".as_bytes())
-                //     .inspect_err(|err| println!("Can not send error message to client: {}", err));
+                handle_client::send_error_to_client(
+                    "Failed to parse request body.".to_string(), 
+                    listner_copy_for_writing)
+                    .await;
                 continue;
             } else {
                 // TODO: 메세징 큐 변수로 데이터를 로드하는 로직이 필요함
@@ -57,15 +85,5 @@ pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut messag
         }
     });
 
-    // TCP/IP 연결 수신 루프
-    loop {
-        let (mut socket, addr) = listner.accept().await?; 
-        let tx_clone = tx.clone();
-        println!("Stream loop entered");
-        tokio::spawn(async move {
-            handle_client::handle_connection(socket, tx_clone).await;
-            println!("serve_client called");
-        });
-    };
     Ok(())
 }
