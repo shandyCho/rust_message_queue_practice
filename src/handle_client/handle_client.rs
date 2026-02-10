@@ -52,26 +52,4 @@ pub async fn handle_connection(mut socket: TcpStream, tx: mpsc::UnboundedSender<
             }
         };
     };
-
-    // while let Some(result) = framed_reader.next().await {
-    //     match result {
-    //         Ok(line) => {
-    //             match serde_json::from_str::<SubscribeMessage>(&line) {
-    //                 Ok(parsed) => {
-    //                     println!("sender_address: {:?}, data: {:?}", &parsed.get_classifier(), &parsed.get_data());
-    //                     tx.send(Some(parsed));
-    //                 }
-    //                 Err(e) => {
-    //                     println!("Failed to parse JSON: {}", e);
-    //                     println!("Converted Data: {}", &line);
-    //                     tx.send(None);
-    //                 }
-    //             }
-    //         }
-    //         Err(e) => {
-    //             eprintln!("Error reading line: {}", e);
-    //             tx.send(None);
-    //         }
-    //     }
-    // };
 }

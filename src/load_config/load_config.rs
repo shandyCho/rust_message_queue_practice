@@ -53,8 +53,6 @@ impl InitialConfig {
 
 pub fn load_config() -> InitialConfig {
              
-    // let config_yaml = fs::read_to_string("/etc/test_mq/test_config.yaml")
-    //                             .expect("Fail to find config file /etc/test_mq/test_config.yaml");
     let config_yaml = fs::read_to_string("./test_config.yaml")
                                 .expect("Fail to find config file /etc/test_mq/test_config.yaml");
     let deserialized_yaml: RawConfig = serde_saphyr::from_str(config_yaml.as_str())
