@@ -4,8 +4,8 @@
 /// 단순히 중계 서버 역할만 해준다면 싱글 스레드로 처리가 되겠으나, 메세지 유실 방지를 위해 인덱싱 혹은 메세지 저장을 하게 된다면 아무래도 멀티 스레딩을 할 수 밖에 없을 것 같다.
 
 pub mod load_config;
-pub mod handle_client;
-pub mod serve_client;
+pub mod handle_publisher;
+pub mod serve_subscriber;
 pub mod sub_and_pub;
 pub mod store_message;
 use std::{error::Error};
@@ -13,7 +13,7 @@ use std::{error::Error};
 use load_config::InitialConfig;
 use tokio::net::TcpListener;
 
-use crate::sub_and_pub::sub_and_pub::sub_and_pub;
+use crate::sub_and_pub::sub_and_pub_master::sub_and_pub_manage;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>>{
     println!("Hello, Message Queue!");
@@ -25,6 +25,6 @@ async fn main() -> Result<(), Box<dyn Error>>{
     let path = config.get_file_path().to_path_buf();
     let mut message_queue: Vec<String> = Vec::new();
     let mut message_store_vector: Vec<String> = Vec::new();
-    sub_and_pub::<String>(listner, path, message_queue, message_store_vector).await?;
+    sub_and_pub_manage::<String>(listner, path, message_queue, message_store_vector).await?;
     Ok(())
 }

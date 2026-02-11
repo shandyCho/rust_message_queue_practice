@@ -74,7 +74,6 @@ pub async fn store_message_in_file(file_path: PathBuf, message_vector: Vec<Strin
                     eprintln!("Failed to flush buffer to file: {}", err);
                     return;
                 });
-            
         },
         Err(e) => {
             eprintln!("Failed to open file for appending: {}", e);

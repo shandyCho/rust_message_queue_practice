@@ -10,14 +10,19 @@ use tokio_stream::StreamExt;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all(deserialize = "camelCase"))]
+pub struct Message {
 pub struct SubscribeMessage {
     classifier: String,
+    subject: String,
     data: Value,
 }
 
+impl Message {
 impl SubscribeMessage {
     pub fn get_classifier(&self) -> &String {
         &self.classifier
+    pub fn get_subject(&self) -> &String {
+        &self.subject
     }
 
     pub fn get_data(&self) -> String {
@@ -27,7 +32,7 @@ impl SubscribeMessage {
 }
 
 
-pub async fn handle_connection(mut socket: TcpStream, addr: SocketAddr, tx: mpsc::UnboundedSender<Option<SubscribeMessage>>) {
+pub async fn read_publisher_message(mut socket: TcpStream, addr: SocketAddr, tx: mpsc::UnboundedSender<Option<Message>>) {
     // 줄바꿈 문자 (\n) 기준으로 데이터를 읽어들이는 Reader 생성
     // LinesCodec 의 기본 설정이 줄바꿈 문자로 데이터를 구분하는 것임
     let (r, w) = socket.into_split();
@@ -36,24 +41,27 @@ pub async fn handle_connection(mut socket: TcpStream, addr: SocketAddr, tx: mpsc
     'frame_reading: while let Some(result) = framed_reader.next().await {
         match result {
             Ok(line) => {
-                let parsed: SubscribeMessage = serde_json::from_str::<SubscribeMessage>(&line)
+                if line == "publish" {
+
+                }
+                let parsed: Message = serde_json::from_str::<Message>(&line)
                     .unwrap_or_else(|e: Error| {
                         eprintln!("Failed to parse JSON: {}", e);
                         eprintln!("Converted Data: {}", &line);
-                        send_error_to_client("Failed to parse request body.".to_string(),  &w, addr);
+                        send_error_to_publisher("Failed to parse request body.".to_string(),  &w, addr);
                         
                         let _tx_result = tx.send( None).unwrap_or_else(|e| {
                             eprintln!("Fail to send message to another thread with e: {}", e);
                         });
                         
-                        SubscribeMessage {
-                            classifier: "".to_string(), 
+                        Message {
+                            subject: "".to_string(), 
                             data: serde_json::Value::String(String::new()) 
                         }
                     }); 
                 
-                if !parsed.get_classifier().is_empty() {
-                    println!("sender_address: {:?}, data: {:?}", &parsed.get_classifier(), &parsed.get_data());
+                if !parsed.get_subject().is_empty() {
+                    println!("sender_address: {:?}, data: {:?}", &parsed.get_subject(), &parsed.get_data());
                     tx.send(Some(parsed))
                     .unwrap_or_else(|e| {
                         eprintln!("Parsing Messege is Success But fail to send message to another thread with e: {}", e);
@@ -76,14 +84,10 @@ pub async fn handle_connection(mut socket: TcpStream, addr: SocketAddr, tx: mpsc
     };
 }
 
-pub fn send_error_to_client(err_msg: String, mut socket: &OwnedWriteHalf, addr: SocketAddr) {
+fn send_error_to_publisher(err_msg: String, mut socket: &OwnedWriteHalf, addr: SocketAddr) {
     let write_result = socket.try_write(err_msg.as_bytes());
     match write_result {
         Ok(_) => eprintln!("Send error to client is Success. System Will close TcpStream from {}", addr),
         Err(e) => eprintln!("Send error to client is failed with e: {}", e)
     };
-
-        
-        
-
 }

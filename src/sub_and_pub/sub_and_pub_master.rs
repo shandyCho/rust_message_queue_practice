@@ -1,9 +1,8 @@
-
-use std::{io::Error, net::SocketAddr, path::PathBuf, sync::Arc, thread};
-use tokio::{net::{TcpListener, TcpStream, tcp::WriteHalf}, sync::mpsc};
+use std::{io::Error, path::PathBuf};
+use tokio::{net::{TcpListener}, sync::mpsc};
 
 use crate::{
-    handle_client::{SubscribeMessage, handle_client},
+    handle_publisher::{Message, handle_publisher::read_publisher_message},
     store_message::store_message::store_message_in_file
 };
     // TODO 
@@ -15,27 +14,28 @@ use crate::{
     // 메세지를 묶을 단위의 벡터는 기동 시 프로퍼티 파일에 정의된 값에 따라 사이즈가 결졍될 수 있도록 할 것 
 
 // 이쪽에서 메세지 IO 작업 진행하는 함수 CALL 하고 Message Queue도 만들어야 할듯
-pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
+pub async fn sub_and_pub_manage<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
     
     // clinet의 요청을 처리할 함수와 통신할 채널 생성
-    let (tx, mut rx) = mpsc::unbounded_channel::<Option<SubscribeMessage>>();
-
-    let tcp_listening_thread = tokio::spawn(async move {
+    let (tx, mut rx) = mpsc::unbounded_channel::<Option<Message>>();
+    
+    let process_pub_and_sub_thread = tokio::spawn(async move {
         // TCP/IP 연결 수신 루프
         loop {
             if let Ok(accept_result) = listner.accept().await {
                 let (mut socket, addr) = accept_result;
                 let tx_clone = tx.clone();
                 println!("Stream loop entered");
-                handle_client::handle_connection(socket, addr, tx_clone).await;
+                read_publisher_message(socket, addr, tx_clone).await;
                 println!("serve_client called");
-                
-                
             } else {
                 eprintln!("Failed to accept connection");
             }
         };
     });
+
+
+
 
     // 채널 수신 및 데이터 처리 로직 비동기 블럭 내에 생성
     let message_store_thread = tokio::spawn(async move {
@@ -71,7 +71,7 @@ pub async fn sub_and_pub<T>(listner: TcpListener, file_path: PathBuf, mut messag
     });
 
 
-    let _result = tcp_listening_thread.await.unwrap_or_else(|f| {eprintln!("{}", f)});
+    let _result = process_pub_and_sub_thread.await.unwrap_or_else(|f| {eprintln!("{}", f)});
     let _result2 = message_store_thread.await.unwrap_or_else(|f| {eprintln!("{}", f)});
     Ok(())
 }
