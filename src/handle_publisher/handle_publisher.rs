@@ -11,16 +11,15 @@ use tokio_stream::StreamExt;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all(deserialize = "camelCase"))]
 pub struct Message {
-pub struct SubscribeMessage {
-    classifier: String,
+    is_published: bool,
     subject: String,
     data: Value,
 }
 
 impl Message {
-impl SubscribeMessage {
-    pub fn get_classifier(&self) -> &String {
-        &self.classifier
+    pub fn is_published(&self) -> &bool {
+        &self.is_published
+    }
     pub fn get_subject(&self) -> &String {
         &self.subject
     }
