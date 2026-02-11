@@ -32,6 +32,7 @@ pub async fn proccess_tcp_read_and_write(mut socket: TcpStream, addr: SocketAddr
         // String으로 변환된 line을 Message 객체로 변환한다
         match deserialized_result {
             Ok(message) => {
+                // Message가 publisher에게서 온 것이라면 메세지 저장을 위해 메세지를 message_store_thread 으로 보냄
                 if message.is_published() {
                     let published_message = PublishedMessage::new(
                         message.get_subject(), 
@@ -46,6 +47,7 @@ pub async fn proccess_tcp_read_and_write(mut socket: TcpStream, addr: SocketAddr
                 }
                 
             }
+            // Message 객체로 변환이 되지 않을 경우 스트림을 그만 읽고 루프에서 빠져나온다
             Err(e) => {
                 eprintln!("Failed to parse JSON: {}", e);
                 eprintln!("Converted Data: {}", &line);
