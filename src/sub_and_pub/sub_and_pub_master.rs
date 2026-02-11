@@ -2,8 +2,7 @@ use std::{io::Error, path::PathBuf};
 use tokio::{net::{TcpListener}, sync::mpsc};
 
 use crate::{
-    handle_publisher::{Message, handle_publisher::read_publisher_message},
-    store_message::store_message::store_message_in_file
+    store_message::store_message::store_message_in_file, sub_and_pub::{message_structs::PublishedMessage, process_tcp_rw::proccess_tcp_read_and_write}
 };
     // TODO 
     // 1. backup 디렉토리 및 파일 생성 로직은 처음 어플리케이션 실행 시점에 한 번만 실행될 수 있도록 할 것
@@ -17,7 +16,7 @@ use crate::{
 pub async fn sub_and_pub_manage<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
     
     // clinet의 요청을 처리할 함수와 통신할 채널 생성
-    let (tx, mut rx) = mpsc::unbounded_channel::<Option<Message>>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<Option<PublishedMessage>>();
     
     let process_pub_and_sub_thread = tokio::spawn(async move {
         // TCP/IP 연결 수신 루프
@@ -26,7 +25,7 @@ pub async fn sub_and_pub_manage<T>(listner: TcpListener, file_path: PathBuf, mut
                 let (mut socket, addr) = accept_result;
                 let tx_clone = tx.clone();
                 println!("Stream loop entered");
-                read_publisher_message(socket, addr, tx_clone).await;
+                proccess_tcp_read_and_write(socket, addr, tx_clone).await;
                 println!("serve_client called");
             } else {
                 eprintln!("Failed to accept connection");
