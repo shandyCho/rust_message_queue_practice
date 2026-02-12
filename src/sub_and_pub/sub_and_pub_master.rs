@@ -1,8 +1,8 @@
 use std::{io::Error, path::PathBuf};
-use tokio::{net::{TcpListener}, sync::mpsc};
+use tokio::{net::TcpListener, sync::{Mutex, mpsc}};
 
 use crate::{
-    store_message::store_message::store_message_in_file, sub_and_pub::{message_structs::PublishedMessage, process_tcp_rw::proccess_tcp_read_and_write}
+    handle_publisher::handle_publisher::send_error_to_publisher, store_message::store_message::store_message_in_file, sub_and_pub::{message_structs::{ChannelMessage, MessageDefaultGetter, PublishedMessage}, process_tcp_rw::{proccess_tcp_read, process_tcp_write}}
 };
     // TODO 
     // 1. backup 디렉토리 및 파일 생성 로직은 처음 어플리케이션 실행 시점에 한 번만 실행될 수 있도록 할 것
@@ -15,30 +15,45 @@ use crate::{
 // 이쪽에서 메세지 IO 작업 진행하는 함수 CALL 하고 Message Queue도 만들어야 할듯
 pub async fn sub_and_pub_manage<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
     
-    // clinet의 요청을 처리할 함수와 통신할 채널 생성
-    let (tx, mut rx) = mpsc::unbounded_channel::<Option<PublishedMessage>>();
+    // Message를 전송할 채널 생성
+    let (message_tx, mut message_rx) = mpsc::unbounded_channel::<Option<PublishedMessage>>();
     
+    // TCP/IP 연결 수신 루프
     let process_pub_and_sub_thread = tokio::spawn(async move {
-        // TCP/IP 연결 수신 루프
-        loop {
+        'tcp_listening_loop: loop {
             if let Ok(accept_result) = listner.accept().await {
+                let (subscriber_tx, mut subscriber_rx) = mpsc::unbounded_channel::<ChannelMessage>(); 
                 let (mut socket, addr) = accept_result;
-                let tx_clone = tx.clone();
-                println!("Stream loop entered");
-                proccess_tcp_read_and_write(socket, addr, tx_clone).await;
-                println!("serve_client called");
+                let (read_stream, write_stream) = socket.into_split();
+                let message_tx_clone = message_tx.clone();
+                let subscriber_tx_clone = subscriber_tx.clone();
+
+                let read_thread = tokio::spawn(async move {
+                    proccess_tcp_read(read_stream, addr, message_tx_clone, subscriber_tx_clone).await;
+                });
+                let write_thread = tokio::spawn(async move {
+                    while let Some(message) = subscriber_rx.recv().await{
+                        if message.is_error_message() {
+                            send_error_to_publisher(message.get_error_message(),  &write_stream, addr);
+                        } else {
+                            let subject = message.get_subject();
+                            process_tcp_write(subject, &write_stream, addr).await;
+                        }
+                        
+                        write_stream.try_write(format!("{}", message.get_subject()).as_bytes()).unwrap();
+                    } 
+                });
+                read_thread.await.unwrap();
+                write_thread.await.unwrap();
             } else {
                 eprintln!("Failed to accept connection");
             }
         };
     });
 
-
-
-
     // 채널 수신 및 데이터 처리 로직 비동기 블럭 내에 생성
     let message_store_thread = tokio::spawn(async move {
-        while let Some(message) = rx.recv().await {
+        while let Some(message) = message_rx.recv().await {
             if message.is_none() {
                 eprintln!("Failed to parse request body. Skipping this connection.");
                 continue;
@@ -70,7 +85,7 @@ pub async fn sub_and_pub_manage<T>(listner: TcpListener, file_path: PathBuf, mut
     });
 
 
-    let _result = process_pub_and_sub_thread.await.unwrap_or_else(|f| {eprintln!("{}", f)});
+    let result = process_pub_and_sub_thread.await.unwrap_or_else(|f| {eprintln!("{}", f)});
     let _result2 = message_store_thread.await.unwrap_or_else(|f| {eprintln!("{}", f)});
     Ok(())
 }
