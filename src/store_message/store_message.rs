@@ -1,21 +1,7 @@
-use std::{
-    fs::{
-        self, 
-        File
-    }, 
-    io::{
-        Write
-    }, 
-    path::PathBuf
-};
+use std::{fs::{self, File}, path::PathBuf};
 use tokio::{
-    fs::{
-        File as AsyncFile
-    },
-    io::{
-        BufWriter as AsyncBufWriter,
-        AsyncWriteExt
-    }
+    fs::{File as AsyncFile},
+    io::{BufWriter as AsyncBufWriter, AsyncWriteExt}
 };
 
 
@@ -44,7 +30,6 @@ pub fn check_file_exists(file_path: PathBuf) -> PathBuf {
         }
     }
 }
-
 
 pub async fn store_message_in_file(file_path: PathBuf, message_vector: Vec<String>) {
     // message_vector 의 경우 clone 한 것을 사용하도록 해야?
@@ -81,6 +66,6 @@ pub async fn store_message_in_file(file_path: PathBuf, message_vector: Vec<Strin
         }
     };
 
-
+todo!("subject별로 다른 파일을 사용하도록 해야함");
 
 }
