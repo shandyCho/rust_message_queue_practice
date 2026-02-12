@@ -3,7 +3,7 @@
 use std::{fs, path::{Path, PathBuf}};
 use serde::Deserialize;
 
-use crate::store_message::store_message::check_file_exists;
+use crate::store_message::store_message::check_file_exists_for_write;
 
 #[derive(Deserialize, Debug)]
 struct RawConfig {
@@ -59,7 +59,7 @@ pub fn load_config() -> InitialConfig {
                                 .expect("yaml structure isn't correct");
 
     println!("Config loaded: {:?}", deserialized_yaml);
-    let file_path = check_file_exists(PathBuf::from(deserialized_yaml.get_file_path().to_string()));
+    let file_path = check_file_exists_for_write(PathBuf::from(deserialized_yaml.get_file_path().to_string()));
     InitialConfig::new(
         deserialized_yaml.get_host().to_string(),
         deserialized_yaml.get_port(),

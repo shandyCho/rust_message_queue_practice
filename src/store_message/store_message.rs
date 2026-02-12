@@ -5,7 +5,7 @@ use tokio::{
 };
 
 
-pub fn check_file_exists(file_path: PathBuf) -> PathBuf {
+pub fn check_file_exists_for_write(file_path: PathBuf) -> PathBuf {
     println!("path exists: {}", file_path.exists());
     println!("is file: {}", file_path.is_file());
 

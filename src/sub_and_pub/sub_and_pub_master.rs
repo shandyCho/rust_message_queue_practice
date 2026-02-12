@@ -13,11 +13,12 @@ use crate::{
     // 메세지를 묶을 단위의 벡터는 기동 시 프로퍼티 파일에 정의된 값에 따라 사이즈가 결졍될 수 있도록 할 것 
 
 // 이쪽에서 메세지 IO 작업 진행하는 함수 CALL 하고 Message Queue도 만들어야 할듯
-pub async fn sub_and_pub_manage<T>(listner: TcpListener, file_path: PathBuf, mut message_queue: Vec<String>, mut message_store_vector: Vec<String>) -> Result<(), Error> {
+pub async fn sub_and_pub_manage<T>(listner: TcpListener, file_path: PathBuf) -> Result<(), Error> {
     
     // Message를 전송할 채널 생성
     let (message_tx, mut message_rx) = mpsc::unbounded_channel::<Option<PublishedMessage>>();
-    
+    let mut message_queue: Vec<String> = Vec::new();
+    let mut message_store_vector: Vec<String> = Vec::new();
     // TCP/IP 연결 수신 루프
     let process_pub_and_sub_thread = tokio::spawn(async move {
         'tcp_listening_loop: loop {
